@@ -1,0 +1,10 @@
+10.1.1.166 NameNode
+10.1.1.213 DataNode-2
+10.1.1.163 DataNode-3
+
+user : Hadoop
+pass : google
+
+su - Hadoop
+HDFS NameNode:      http://10.1.1.166:9870
+YARN ResourceMgr:   http://10.1.1.166:8088

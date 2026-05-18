@@ -1,0 +1,22 @@
+# datasets and big outputs
+datasets/
+results/
+*.log
+*.out
+*.tmp
+
+# Java build
+target/
+*.class
+*.jar
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
