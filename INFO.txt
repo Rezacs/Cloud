@@ -2,6 +2,7 @@ cd ~/Cloud && git fetch origin && git reset --hard origin/main
 
 tmux attach -t hadoopjob
 
+-------------------------------------------------------------------
 
 
 10.1.1.166 NameNode
@@ -15,10 +16,44 @@ su - hadoop
 HDFS NameNode:      http://10.1.1.166:9870
 YARN ResourceMgr:   http://10.1.1.166:8088
 
+-------------------------------------------------------------------
 
+Hadoop:
 hdfs dfs -rm -r -f /output/hadoop-index-small
 
 hadoop jar ~/Cloud/hadoop-java/target/hadoop-inverted-index-1.0.jar \
 it.unipi.cloud.InvertedIndex \
 /input/full_dataset/* \
 /output/hadoop-index-small
+
+spark : 
+hdfs dfs -rm -r -f /output/spark-index-small
+
+spark-submit \
+~/Cloud/spark-python/inverted_index_spark.py \
+hdfs:///input/full_dataset/* \
+hdfs:///output/spark-index-small
+
+-------------------------------------------------------------------
+
+Phase A — Finish base project on current small dataset
+1. Hadoop Java inverted index ✅ done
+2. Spark Python inverted index
+3. Python search-query script
+4. Run both on current dataset
+5. Compare outputs
+6. Collect first performance numbers
+
+Phase B — Add bigger datasets
+7. Add medium dataset
+8. Add large 1GB+ dataset
+9. Run Hadoop vs Spark on all datasets
+10. Collect final performance table
+
+Phase C — Extra 3 points
+11. In-mapper combining
+12. Sequential non-parallel Python inverted index
+13. Multiple reducers experiments
+
+Phase D — Report
+14. Write final 4–5 page report
