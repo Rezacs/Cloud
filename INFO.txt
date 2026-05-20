@@ -1,5 +1,9 @@
 cd ~/Cloud && git fetch origin && git reset --hard origin/main
 
+tmux attach -t hadoopjob
+
+
+
 10.1.1.166 NameNode
 10.1.1.213 DataNode-2
 10.1.1.163 DataNode-3
@@ -10,3 +14,11 @@ pass : google
 su - hadoop
 HDFS NameNode:      http://10.1.1.166:9870
 YARN ResourceMgr:   http://10.1.1.166:8088
+
+
+hdfs dfs -rm -r -f /output/hadoop-index-small
+
+hadoop jar ~/Cloud/hadoop-java/target/hadoop-inverted-index-1.0.jar \
+it.unipi.cloud.InvertedIndex \
+/input/full_dataset/* \
+/output/hadoop-index-small
