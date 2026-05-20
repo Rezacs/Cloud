@@ -57,3 +57,12 @@ Phase C — Extra 3 points
 
 Phase D — Report
 14. Write final 4–5 page report
+
+-------------------------------------------------------------------
+
+1. Compare Hadoop output and Spark output for correctness
+2. Add simple run scripts
+3. Collect performance numbers on current dataset
+4. Add medium/large datasets
+5. Run performance evaluation again
+6. Then start extra-point features
