@@ -35,15 +35,15 @@ public class InvertedIndex {
         public void map(Object key, Text value, Context context)
                 throws IOException, InterruptedException {
 
-            String line = value.toString().toLowerCase();
-            String[] words = line.split("\\W+");
+String line = value.toString().toLowerCase();
+java.util.regex.Matcher matcher =
+        java.util.regex.Pattern.compile("[a-z0-9]+").matcher(line);
 
-            for (String word : words) {
-                if (!word.isEmpty()) {
-                    outputKey.set(word + "@" + filename);
-                    context.write(outputKey, one);
-                }
-            }
+while (matcher.find()) {
+    String word = matcher.group();
+    outputKey.set(word + "@" + filename);
+    context.write(outputKey, one);
+}
         }
     }
 

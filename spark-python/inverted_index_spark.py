@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession
 
 
 def tokenize(text):
-    return [w for w in re.split(r"\W+", text.lower()) if w]
+    return re.findall(r"[a-z0-9]+", text.lower())
 
 
 def main():
