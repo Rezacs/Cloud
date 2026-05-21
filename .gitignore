@@ -22,3 +22,9 @@ Thumbs.db
 .idea/
 
 *.zip
+
+results/
+!results/
+!results/summary/
+!results/summary/*.csv
+!results/summary/*.md
