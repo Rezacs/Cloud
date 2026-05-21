@@ -1,0 +1,3 @@
+Dataset,Dataset_Size,Input_Path,Framework,Implementation,Output_Path,Index_Terms,Execution_Time,Max_Memory_KB,Notes
+small,current small dataset,/input/full_dataset,Hadoop,Java MapReduce,/output/hadoop-index-small,29240,34:31.95,223140,Combiner used
+small,current small dataset,/input/full_dataset,Spark,Python PySpark,/output/spark-index-small,29240,0:34.75,465144,Same output as Hadoop
