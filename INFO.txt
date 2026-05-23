@@ -1,6 +1,9 @@
 cd ~/Cloud && git fetch origin && git reset --hard origin/main
 
 tmux attach -t hadoopjob
+tmux attach
+Ctrl+b then d
+shift + alt
 
 -------------------------------------------------------------------
 
