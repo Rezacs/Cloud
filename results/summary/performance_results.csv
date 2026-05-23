@@ -1,3 +1,7 @@
 Dataset,Dataset_Size,Input_Path,Framework,Implementation,Output_Path,Index_Terms,Execution_Time,Max_Memory_KB,Notes
 small,current small dataset,/input/full_dataset,Hadoop,Java MapReduce,/output/hadoop-index-small,29240,34:31.95,223140,Combiner used
 small,current small dataset,/input/full_dataset,Spark,Python PySpark,/output/spark-index-small,29240,0:34.75,465144,Same output as Hadoop
+gutenberg-medium,Project Gutenberg medium,/input/gutenberg-medium,Hadoop,Java MapReduce,/output/hadoop-index-gutenberg-medium,304951,41:00.65,226996,Combiner used
+gutenberg-medium,Project Gutenberg medium,/input/gutenberg-medium,Spark,Python PySpark,/output/spark-index-gutenberg-medium,304951,6:21.98,573428,Same output as Hadoop
+gutenberg-large,Project Gutenberg large 1.7GB,/input/gutenberg-large,Hadoop,Java MapReduce,/output/hadoop-index-gutenberg-large,993379,3:39:49,251036,Combiner used
+gutenberg-large,Project Gutenberg large 1.7GB,/input/gutenberg-large,Spark,Python PySpark,/output/spark-index-gutenberg-large,993379,32:29.60,748116,Same output as Hadoop
