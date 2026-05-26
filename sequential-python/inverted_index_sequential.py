@@ -38,7 +38,8 @@ def main():
         filename = os.path.basename(filepath)
 
         try:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            # with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 text = f.read()
         except Exception as e:
             print(f"Skipping {filepath}: {e}", file=sys.stderr)

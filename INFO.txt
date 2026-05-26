@@ -69,3 +69,19 @@ Phase D — Report
 4. Add medium/large datasets
 5. Run performance evaluation again
 6. Then start extra-point features
+
+-------------------------------------------------------------------
+
+=== LOCAL DATASET SIZES ===
+4.9M    /home/hadoop/Cloud/datasets
+341M    /home/hadoop/gutenberg/medium
+1.7G    /home/hadoop/gutenberg/large
+=== HDFS DATASET SIZES ===
+2.5 M  4.9 M  /input/full_dataset
+338.7 M  677.4 M  /input/gutenberg-medium
+1.7 G  3.3 G  /input/gutenberg-large
+=== HDFS FILE COUNTS ===
+          11         1000            2581222 /input/full_dataset
+           1          894          355135669 /input/gutenberg-medium
+           1         4472         1793799963 /input/gutenberg-large
+hadoop@namenode:~/Cloud$
