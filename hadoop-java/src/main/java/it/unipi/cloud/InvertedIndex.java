@@ -106,10 +106,16 @@ while (matcher.find()) {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 2) {
-            System.err.println("Usage: InvertedIndex <input> <output>");
-            System.exit(1);
-        }
+        // if (args.length != 2) {
+        //     System.err.println("Usage: InvertedIndex <input> <output>");
+        //     System.exit(1);
+        // }
+
+        // extra point 3 : 
+            if (args.length < 2 || args.length > 3) {
+                System.err.println("Usage: InvertedIndex <input> <output> [numReducers]");
+                System.exit(1);
+            }
 
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "Hadoop Inverted Index");
@@ -125,6 +131,10 @@ while (matcher.find()) {
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
+
+        if (args.length == 3) {
+            job.setNumReduceTasks(Integer.parseInt(args[2]));
+        }
 
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
