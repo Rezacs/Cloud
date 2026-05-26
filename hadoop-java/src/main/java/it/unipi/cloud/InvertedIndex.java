@@ -15,6 +15,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.Partitioner;
 
 public class InvertedIndex {
 
@@ -104,6 +105,15 @@ while (matcher.find()) {
         }
     }
 
+    public static class WordPartitioner extends Partitioner<Text, IntWritable> {
+        @Override
+        public int getPartition(Text key, IntWritable value, int numPartitions) {
+            String keyString = key.toString();
+            String word = keyString.split("@", 2)[0];
+            return Math.abs(word.hashCode()) % numPartitions;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
 
         // if (args.length != 2) {
@@ -125,6 +135,7 @@ while (matcher.find()) {
         job.setMapperClass(IndexMapper.class);
         job.setCombinerClass(SumCombiner.class);
         job.setReducerClass(IndexReducer.class);
+        job.setPartitionerClass(WordPartitioner.class);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(IntWritable.class);
