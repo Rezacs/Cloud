@@ -16,3 +16,9 @@ Notes:
 
 | Gutenberg large 1.7GB | Hadoop | Java MapReduce | 993,379 | 3:39:49 | 251,036 KB |
 | Gutenberg large 1.7GB | Spark | Python PySpark | 993,379 | 32:29.60 | 748,116 KB |
+
+| Gutenberg medium | Hadoop | Java MapReduce 2 reducers | 304,951 | 36:08.58 | 221,236 KB |
+| Gutenberg medium | Hadoop | Java MapReduce 4 reducers | 304,951 | 36:06.94 | 222,632 KB |
+
+| Gutenberg large 1.7GB | Hadoop | Java MapReduce 2 reducers | 993,379 | 2:57:35 | 374,532 KB |
+| Gutenberg large 1.7GB | Hadoop | Java MapReduce 4 reducers | 993,379 | 2:50:40 | 261,504 KB |
