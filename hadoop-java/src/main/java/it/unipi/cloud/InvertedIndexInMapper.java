@@ -18,6 +18,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.Partitioner;
 
 public class InvertedIndexInMapper {
 
@@ -102,10 +103,25 @@ public class InvertedIndexInMapper {
         }
     }
 
+    public static class WordPartitioner extends Partitioner<Text, IntWritable> {
+        @Override
+        public int getPartition(Text key, IntWritable value, int numPartitions) {
+            String keyString = key.toString();
+            String word = keyString.split("@", 2)[0];
+            return Math.abs(word.hashCode()) % numPartitions;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 2) {
-            System.err.println("Usage: InvertedIndexInMapper <input> <output>");
+        // if (args.length != 2) {
+        //     System.err.println("Usage: InvertedIndexInMapper <input> <output>");
+        //     System.exit(1);
+        // }
+
+        // for reducers
+        if (args.length < 2 || args.length > 3) {
+            System.err.println("Usage: InvertedIndexInMapper <input> <output> [numReducers]");
             System.exit(1);
         }
 
@@ -116,12 +132,17 @@ public class InvertedIndexInMapper {
 
         job.setMapperClass(InMapperCombinerMapper.class);
         job.setReducerClass(IndexReducer.class);
+        job.setPartitionerClass(WordPartitioner.class);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(IntWritable.class);
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
+
+        if (args.length == 3) {
+            job.setNumReduceTasks(Integer.parseInt(args[2]));
+        }
 
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));

@@ -8,12 +8,13 @@ def tokenize(text):
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: inverted_index_spark.py <input> <output>")
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: inverted_index_spark.py <input> <output> [numPartitions]")
         sys.exit(1)
 
     input_path = sys.argv[1]
     output_path = sys.argv[2]
+    num_partitions = int(sys.argv[3]) if len(sys.argv) == 4 else None
 
     spark = SparkSession.builder.appName("Spark Inverted Index").getOrCreate()
     sc = spark.sparkContext
@@ -27,18 +28,29 @@ def main():
         ]
     )
 
-    word_file_counts = word_file_pairs.reduceByKey(lambda a, b: a + b)
+    if num_partitions:
+        word_file_counts = word_file_pairs.reduceByKey(lambda a, b: a + b, num_partitions)
+    else:
+        word_file_counts = word_file_pairs.reduceByKey(lambda a, b: a + b)
 
     word_postings = word_file_counts.map(
         lambda x: (x[0][0], f"{x[0][1]}:{x[1]}")
     )
 
-    inverted_index = (
-        word_postings
-        .groupByKey()
-        .mapValues(lambda postings: " ".join(sorted(postings)))
-        .sortByKey()
-    )
+    if num_partitions:
+        inverted_index = (
+            word_postings
+            .groupByKey(num_partitions)
+            .mapValues(lambda postings: " ".join(sorted(postings)))
+            .sortByKey(numPartitions=num_partitions)
+        )
+    else:
+        inverted_index = (
+            word_postings
+            .groupByKey()
+            .mapValues(lambda postings: " ".join(sorted(postings)))
+            .sortByKey()
+        )
 
     inverted_index.map(lambda x: f"{x[0]}\t{x[1]}").saveAsTextFile(output_path)
 
