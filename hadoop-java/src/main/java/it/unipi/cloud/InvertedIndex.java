@@ -12,39 +12,41 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+// import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+// import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 
 public class InvertedIndex {
 
-    public static class IndexMapper
-            extends Mapper<Object, Text, Text, IntWritable> {
+public static class IndexMapper
+        extends Mapper<Text, Text, Text, IntWritable> {
 
-        private final static IntWritable one = new IntWritable(1);
-        private Text outputKey = new Text();
-        private String filename;
+    private final static IntWritable one = new IntWritable(1);
+    private final Text outputKey = new Text();
+    private Set<String> stopWords;
+
+    @Override
+    protected void setup(Context context) throws IOException {
+        stopWords = StopWords.load(context.getConfiguration());
+    }
 
         @Override
-        protected void setup(Context context) {
-            FileSplit split = (FileSplit) context.getInputSplit();
-            filename = split.getPath().getName();
-        }
+        public void map(Text key, Text value, Context context)
+            throws IOException, InterruptedException {
 
-        @Override
-        public void map(Object key, Text value, Context context)
-                throws IOException, InterruptedException {
+                String line = value.toString().toLowerCase();
+                java.util.regex.Matcher matcher =
+                        java.util.regex.Pattern.compile("[a-z0-9]+").matcher(line);
 
-String line = value.toString().toLowerCase();
-java.util.regex.Matcher matcher =
-        java.util.regex.Pattern.compile("[a-z0-9]+").matcher(line);
-
-while (matcher.find()) {
-    String word = matcher.group();
-    outputKey.set(word + "@" + filename);
-    context.write(outputKey, one);
-}
+                while (matcher.find()) {
+                    String word = matcher.group();
+                    if (!stopWords.contains(word)) {
+                        String filename = key.toString();
+                        outputKey.set(word + "@" + filename);
+                        context.write(outputKey, one);
+                    }
+                }
         }
     }
 
@@ -122,12 +124,17 @@ while (matcher.find()) {
         // }
 
         // extra point 3 : 
-            if (args.length < 2 || args.length > 3) {
-                System.err.println("Usage: InvertedIndex <input> <output> [numReducers]");
-                System.exit(1);
-            }
+        if (args.length < 2 || args.length > 4) {
+            System.err.println("Usage: InvertedIndex <input> <output> [numReducers] [stopwordsPath]");
+            System.exit(1);
+        }
 
         Configuration conf = new Configuration();
+
+        if (args.length >= 4) {
+            conf.set("stopwords.path", args[3]);
+        }
+
         Job job = Job.getInstance(conf, "Hadoop Inverted Index");
 
         job.setJarByClass(InvertedIndex.class);
@@ -143,11 +150,13 @@ while (matcher.find()) {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        if (args.length == 3) {
+        if (args.length >= 3) {
             job.setNumReduceTasks(Integer.parseInt(args[2]));
         }
 
-        FileInputFormat.addInputPath(job, new Path(args[0]));
+        job.setInputFormatClass(WholeFileInputFormat.class);
+        WholeFileInputFormat.addInputPath(job, new Path(args[0]));
+        WholeFileInputFormat.setMaxInputSplitSize(job, 128 * 1024 * 1024);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         System.exit(job.waitForCompletion(true) ? 0 : 1);

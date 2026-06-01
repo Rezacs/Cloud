@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -15,43 +16,50 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+// import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+// import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 
 public class InvertedIndexInMapper {
 
     public static class InMapperCombinerMapper
-            extends Mapper<Object, Text, Text, IntWritable> {
+            extends Mapper<Text, Text, Text, IntWritable> {
 
-        private String filename;
         private Map<String, Integer> localCounts;
+        private Set<String> stopWords;
 
         @Override
-        protected void setup(Context context) {
-            FileSplit split = (FileSplit) context.getInputSplit();
-            filename = split.getPath().getName();
+        protected void setup(Context context) throws IOException {
             localCounts = new HashMap<>();
+            stopWords = StopWords.load(context.getConfiguration());
         }
 
         @Override
-        public void map(Object key, Text value, Context context)
+        public void map(Text key, Text value, Context context)
                 throws IOException, InterruptedException {
 
+            localCounts.clear();
+
+            String filename = key.toString();
             String line = value.toString().toLowerCase();
+
             java.util.regex.Matcher matcher =
                     java.util.regex.Pattern.compile("[a-z0-9]+").matcher(line);
 
             while (matcher.find()) {
                 String word = matcher.group();
-                String outputKey = word + "@" + filename;
-                localCounts.put(outputKey, localCounts.getOrDefault(outputKey, 0) + 1);
+
+                if (!stopWords.contains(word)) {
+                    String outputKey = word + "@" + filename;
+                    localCounts.put(outputKey, localCounts.getOrDefault(outputKey, 0) + 1);
+                }
             }
+
+            flush(context);
         }
 
-        @Override
-        protected void cleanup(Context context)
+        private void flush(Context context)
                 throws IOException, InterruptedException {
 
             Text outputKey = new Text();
@@ -62,6 +70,8 @@ public class InvertedIndexInMapper {
                 outputValue.set(entry.getValue());
                 context.write(outputKey, outputValue);
             }
+
+            localCounts.clear();
         }
     }
 
@@ -120,12 +130,17 @@ public class InvertedIndexInMapper {
         // }
 
         // for reducers
-        if (args.length < 2 || args.length > 3) {
-            System.err.println("Usage: InvertedIndexInMapper <input> <output> [numReducers]");
+        if (args.length < 2 || args.length > 4) {
+            System.err.println("Usage: InvertedIndexInMapper <input> <output> [numReducers] [stopwordsPath]");
             System.exit(1);
         }
 
         Configuration conf = new Configuration();
+
+        if (args.length >= 4) {
+            conf.set("stopwords.path", args[3]);
+        }
+
         Job job = Job.getInstance(conf, "Hadoop Inverted Index with In-Mapper Combining");
 
         job.setJarByClass(InvertedIndexInMapper.class);
@@ -140,11 +155,13 @@ public class InvertedIndexInMapper {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        if (args.length == 3) {
+        if (args.length >= 3) {
             job.setNumReduceTasks(Integer.parseInt(args[2]));
         }
 
-        FileInputFormat.addInputPath(job, new Path(args[0]));
+        job.setInputFormatClass(WholeFileInputFormat.class);
+        WholeFileInputFormat.addInputPath(job, new Path(args[0]));
+        WholeFileInputFormat.setMaxInputSplitSize(job, 128 * 1024 * 1024);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         System.exit(job.waitForCompletion(true) ? 0 : 1);
