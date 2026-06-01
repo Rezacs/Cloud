@@ -161,8 +161,6 @@ public class InvertedIndexInMapper {
 
         job.setInputFormatClass(WholeFileInputFormat.class);
         WholeFileInputFormat.addInputPath(job, new Path(args[0]));
-        WholeFileInputFormat.setMinInputSplitSizeRack(job, 1);
-        WholeFileInputFormat.setMinInputSplitSizeNode(job, 1);
         WholeFileInputFormat.setMaxInputSplitSize(job, 128 * 1024 * 1024);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 

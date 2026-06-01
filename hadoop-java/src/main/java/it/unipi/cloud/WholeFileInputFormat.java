@@ -16,7 +16,25 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.hadoop.fs.FileStatus;
+
 public class WholeFileInputFormat extends CombineFileInputFormat<Text, Text> {
+
+    @Override
+    protected List<FileStatus> listStatus(JobContext job) throws IOException {
+        List<FileStatus> files = super.listStatus(job);
+        List<FileStatus> nonEmptyFiles = new ArrayList<>();
+
+        for (FileStatus file : files) {
+            if (file.getLen() > 0) {
+                nonEmptyFiles.add(file);
+            }
+        }
+
+        return nonEmptyFiles;
+    }
 
     @Override
     protected boolean isSplitable(JobContext context, Path file) {
