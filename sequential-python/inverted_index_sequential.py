@@ -4,8 +4,24 @@ import sys
 from collections import defaultdict, Counter
 
 
+STOPWORDS_FILE = "/home/hadoop/Cloud/hadoop-java/src/main/resources/stopwords.txt"
+TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+
+def load_stopwords():
+    stopwords = set()
+
+    with open(STOPWORDS_FILE, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            word = line.strip().lower()
+            if word and not word.startswith("#"):
+                stopwords.add(word)
+
+    return stopwords
+
+
 def tokenize(text):
-    return re.findall(r"[a-z0-9]+", text.lower())
+    return TOKEN_RE.findall(text.lower())
 
 
 def collect_files(input_path):
@@ -30,6 +46,7 @@ def main():
     input_path = sys.argv[1]
     output_file = sys.argv[2]
 
+    stopwords = load_stopwords()
     inverted_index = defaultdict(dict)
 
     files = collect_files(input_path)
@@ -38,14 +55,16 @@ def main():
         filename = os.path.basename(filepath)
 
         try:
-            # with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 text = f.read()
         except Exception as e:
             print(f"Skipping {filepath}: {e}", file=sys.stderr)
             continue
 
-        counts = Counter(tokenize(text))
+        counts = Counter(
+            word for word in tokenize(text)
+            if word not in stopwords
+        )
 
         for word, count in counts.items():
             inverted_index[word][filename] = count
