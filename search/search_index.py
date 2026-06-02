@@ -1,6 +1,8 @@
 import re
 import sys
 
+STOPWORDS_FILE = "/home/hadoop/Cloud/hadoop-java/src/main/resources/stopwords.txt"
+
 
 def load_stopwords(stopwords_file):
     stopwords = set()
@@ -92,20 +94,18 @@ def interactive_mode(index, stopwords):
 
 
 def main():
-    if len(sys.argv) < 3 or len(sys.argv) > 4:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("Usage:")
-        print("  python3 search_index.py <index_file> <stopwords_file>")
-        print("  python3 search_index.py <index_file> <stopwords_file> <query>")
+        print("  python3 search_index.py <index_file>")
+        print("  python3 search_index.py <index_file> <query>")
         sys.exit(1)
 
     index_file = sys.argv[1]
-    stopwords_file = sys.argv[2]
-
-    stopwords = load_stopwords(stopwords_file)
+    stopwords = load_stopwords(STOPWORDS_FILE)
     index = load_index(index_file)
 
-    if len(sys.argv) == 4:
-        query = sys.argv[3]
+    if len(sys.argv) == 3:
+        query = sys.argv[2]
         results = search(index, query, stopwords)
 
         for filename in results:
