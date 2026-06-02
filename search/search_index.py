@@ -2,8 +2,21 @@ import re
 import sys
 
 
-def normalize_query(query):
-    return re.findall(r"[a-z0-9]+", query.lower())
+def load_stopwords(stopwords_file):
+    stopwords = set()
+
+    with open(stopwords_file, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            word = line.strip().lower()
+            if word and not word.startswith("#"):
+                stopwords.add(word)
+
+    return stopwords
+
+
+def normalize_query(query, stopwords):
+    terms = re.findall(r"[a-z0-9]+", query.lower())
+    return [term for term in terms if term not in stopwords]
 
 
 def parse_files(postings):
@@ -35,8 +48,8 @@ def load_index(index_file):
     return index
 
 
-def search(index, query):
-    query_terms = normalize_query(query)
+def search(index, query, stopwords):
+    query_terms = normalize_query(query, stopwords)
 
     if not query_terms:
         return []
@@ -54,9 +67,10 @@ def search(index, query):
     return sorted(result) if result else []
 
 
-def interactive_mode(index):
+def interactive_mode(index, stopwords):
     print("Simple Inverted Index Search")
     print("Type a word or multiple words.")
+    print("Stopwords in the query are ignored.")
     print("Type 'exit' or 'quit' to stop.")
     print()
 
@@ -66,7 +80,7 @@ def interactive_mode(index):
         if query.lower() in {"exit", "quit"}:
             break
 
-        results = search(index, query)
+        results = search(index, query, stopwords)
 
         for filename in results:
             print(filename)
@@ -78,23 +92,26 @@ def interactive_mode(index):
 
 
 def main():
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
         print("Usage:")
-        print("  python3 search_index.py <index_file>")
-        print("  python3 search_index.py <index_file> <query>")
+        print("  python3 search_index.py <index_file> <stopwords_file>")
+        print("  python3 search_index.py <index_file> <stopwords_file> <query>")
         sys.exit(1)
 
     index_file = sys.argv[1]
+    stopwords_file = sys.argv[2]
+
+    stopwords = load_stopwords(stopwords_file)
     index = load_index(index_file)
 
-    if len(sys.argv) == 3:
-        query = sys.argv[2]
-        results = search(index, query)
+    if len(sys.argv) == 4:
+        query = sys.argv[3]
+        results = search(index, query, stopwords)
 
         for filename in results:
             print(filename)
     else:
-        interactive_mode(index)
+        interactive_mode(index, stopwords)
 
 
 if __name__ == "__main__":
