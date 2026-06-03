@@ -1,3 +1,16 @@
+for node in namenode datanode2 datanode3; do
+  echo -n "$node: "
+  ssh hadoop@$node "df -h / | awk 'NR==2 {print \$5 \" used, \" \$3 \" used of \" \$2 \", \" \$4 \" free\"}'"
+done
+
+for node in namenode datanode2 datanode3; do
+   echo -n "$node: ";   
+   ssh hadoop@$node "du -sh /opt/hdfs/datanode 2>/dev/null | awk '{print \$1 \" in datanode storage\"}'";
+done
+
+
+
+
 cd ~/Cloud && git fetch origin && git reset --hard origin/main
 
 tmux attach -t hadoopjob
