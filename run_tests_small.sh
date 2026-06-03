@@ -14,23 +14,6 @@ export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/bin:$SPARK_HOME/sbin:
 
 cd ~/Cloud
 
-run_timed_job() {
-label="$1"
-log="$2"
-shift 2
-
-start=$(date +%s)
-"$@" > "$log" 2>&1
-exit_code=$?
-end=$(date +%s)
-elapsed=$((end - start))
-
-echo "Finished $label, exit=$exit_code, seconds=${elapsed}s"
-echo "Elapsed seconds: $elapsed" >> "$log"
-
-return $exit_code
-}
-
 REDUCERS="1 2 4 8 16 24"
 
 JAR="$HOME/Cloud/hadoop-java/target/hadoop-inverted-index-1.0.jar"
@@ -82,50 +65,89 @@ echo "=== START HADOOP BASE EXPERIMENTS ==="
 
 for r in $REDUCERS; do
 echo "=== Hadoop BASE | dataset=$SIZE | reducers=$r ==="
+
+```
 out="$BASE_OUT/$SIZE/hadoop-base-r$r"
 log="$LOG_DIR/${SIZE}_hadoop-base-r$r.log"
+
 hdfs dfs -rm -r -f "$out"
 
-run_timed_job "Hadoop BASE $SIZE r$r" "$log" 
-/usr/bin/time -v hadoop jar "$JAR" 
-it.unipi.cloud.InvertedIndex 
-"$HDFS_INPUT" 
-"$out" 
-"$r" 
-"$STOPWORDS_HDFS"
+start=$SECONDS
+
+/usr/bin/time -v hadoop jar "$JAR" \
+    it.unipi.cloud.InvertedIndex \
+    "$HDFS_INPUT" \
+    "$out" \
+    "$r" \
+    "$STOPWORDS_HDFS" \
+    > "$log" 2>&1
+
+exit_code=$?
+elapsed=$((SECONDS - start))
+
+echo "Finished Hadoop BASE $SIZE r$r, exit=$exit_code, seconds=${elapsed}s"
+echo "Elapsed seconds: $elapsed" >> "$log"
+```
+
 done
 
 echo "=== START HADOOP INMAPPER EXPERIMENTS ==="
 
 for r in $REDUCERS; do
 echo "=== Hadoop INMAPPER | dataset=$SIZE | reducers=$r ==="
+
+```
 out="$BASE_OUT/$SIZE/hadoop-inmapper-r$r"
 log="$LOG_DIR/${SIZE}_hadoop-inmapper-r$r.log"
+
 hdfs dfs -rm -r -f "$out"
 
-run_timed_job "Hadoop INMAPPER $SIZE r$r" "$log" 
-/usr/bin/time -v hadoop jar "$JAR" 
-it.unipi.cloud.InvertedIndexInMapper 
-"$HDFS_INPUT" 
-"$out" 
-"$r" 
-"$STOPWORDS_HDFS"
+start=$SECONDS
+
+/usr/bin/time -v hadoop jar "$JAR" \
+    it.unipi.cloud.InvertedIndexInMapper \
+    "$HDFS_INPUT" \
+    "$out" \
+    "$r" \
+    "$STOPWORDS_HDFS" \
+    > "$log" 2>&1
+
+exit_code=$?
+elapsed=$((SECONDS - start))
+
+echo "Finished Hadoop INMAPPER $SIZE r$r, exit=$exit_code, seconds=${elapsed}s"
+echo "Elapsed seconds: $elapsed" >> "$log"
+```
+
 done
 
 echo "=== START SPARK EXPERIMENTS ==="
 
 for p in $REDUCERS; do
 echo "=== Spark OPTIMIZED | dataset=$SIZE | partitions=$p ==="
+
+```
 out="$BASE_OUT/$SIZE/spark-optimized-p$p"
 log="$LOG_DIR/${SIZE}_spark-optimized-p$p.log"
+
 hdfs dfs -rm -r -f "$out"
 
-run_timed_job "Spark OPTIMIZED $SIZE p$p" "$log" 
-/usr/bin/time -v spark-submit "$SPARK_SCRIPT" 
-"$SPARK_INPUT" 
-"hdfs://namenode:9000$out" 
-"$p" 
-"$STOPWORDS_LOCAL"
+start=$SECONDS
+
+/usr/bin/time -v spark-submit "$SPARK_SCRIPT" \
+    "$SPARK_INPUT" \
+    "hdfs://namenode:9000$out" \
+    "$p" \
+    "$STOPWORDS_LOCAL" \
+    > "$log" 2>&1
+
+exit_code=$?
+elapsed=$((SECONDS - start))
+
+echo "Finished Spark OPTIMIZED $SIZE p$p, exit=$exit_code, seconds=${elapsed}s"
+echo "Elapsed seconds: $elapsed" >> "$log"
+```
+
 done
 
 echo "=== START SEQUENTIAL PYTHON EXPERIMENT ===" | tee "$ANALYSIS_DIR/sequential_summary.txt"
@@ -133,27 +155,40 @@ echo "=== START SEQUENTIAL PYTHON EXPERIMENT ===" | tee "$ANALYSIS_DIR/sequentia
 seq_file="$SEQ_OUT_DIR/index_small.txt"
 seq_log="$LOG_DIR/small_sequential.log"
 
-run_timed_job "Sequential Python $SIZE" "$seq_log" 
+start=$SECONDS
+
 /usr/bin/time -v python3 "$SEQ_SCRIPT" 
 "$LOCAL_INPUT" 
-"$seq_file"
+"$seq_file" 
+> "$ANALYSIS_DIR/small_sequential_stdout.txt" 2> "$seq_log"
 
-echo "exit_code=0" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
+exit_code=$?
+elapsed=$((SECONDS - start))
+
+echo "Finished Sequential Python $SIZE, exit=$exit_code, seconds=${elapsed}s"
+echo "Elapsed seconds: $elapsed" >> "$seq_log"
+
+echo "exit_code=$exit_code" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
 echo "index_terms=$(wc -l < "$seq_file" 2>/dev/null || echo 0)" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
 echo "output_size=$(du -h "$seq_file" 2>/dev/null | awk '{print $1}')" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
 grep -E "Elapsed|Elapsed seconds|Maximum resident|User time|System time|Percent of CPU" "$seq_log" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
 
 echo "=== PERFORMANCE SUMMARY ===" | tee "$ANALYSIS_DIR/performance_summary.txt"
+
 for log in "$LOG_DIR"/*.log; do
 [ -f "$log" ] || continue
 name="$(basename "$log")"
 
+```
 if echo "$name" | grep -q "sequential"; then
-continue
+    continue
 fi
 
 echo "--- $name ---" | tee -a "$ANALYSIS_DIR/performance_summary.txt"
+
 grep -E "Elapsed|Elapsed seconds|Maximum resident|User time|System time|Percent of CPU|CPU time spent|Physical memory|Virtual memory|Total time spent|Launched map tasks|Launched reduce tasks|Map input records|Map output records|Reduce input records|Reduce output records|FILE: Number of bytes|HDFS: Number of bytes|Job Finished|Job failed|Exception|ERROR" "$log" | tee -a "$ANALYSIS_DIR/performance_summary.txt"
+```
+
 done
 
 echo "=== LINE COUNTS ===" | tee "$ANALYSIS_DIR/line_counts.txt"
@@ -195,7 +230,9 @@ cat "$ANALYSIS_DIR/sequential_summary.txt" | tee -a "$ANALYSIS_DIR/final_summary
 cat "$ANALYSIS_DIR/performance_summary.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
 
 echo "=== CREATE SUMMARY ARCHIVE ==="
+
 SUMMARY_DIR="results/analysis/final_exp_small_summary"
+
 rm -rf "$SUMMARY_DIR"
 mkdir -p "$SUMMARY_DIR/samples" "$SUMMARY_DIR/logs"
 
