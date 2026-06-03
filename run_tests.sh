@@ -1,3 +1,12 @@
+#!/usr/bin/env bash
+
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export HADOOP_HOME=/opt/hadoop
+export HADOOP_CONF_DIR=/opt/hadoop/etc/hadoop
+export YARN_CONF_DIR=/opt/hadoop/etc/hadoop
+export SPARK_HOME=/usr/local/spark
+export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH
+
 cd ~/Cloud
 
 REDUCERS="1 2 4 8 16 24"
