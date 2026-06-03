@@ -18,7 +18,7 @@ public class StopWords {
 
         String stopWordsPath = conf.get("stopwords.path");
 
-        if (stopWordsPath == null || stopWordsPath.isBlank()) {
+        if (stopWordsPath == null || stopWordsPath.trim().isEmpty()) {
             return stopWords;
         }
 
