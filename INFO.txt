@@ -9,6 +9,10 @@ for node in namenode datanode2 datanode3; do
 done
 
 
+chmod +x ~/Cloud/run_tests_small.sh
+bash ~/Cloud/run_tests_small.sh
+
+
 
 
 cd ~/Cloud && git fetch origin && git reset --hard origin/main
