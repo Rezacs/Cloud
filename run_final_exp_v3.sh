@@ -113,7 +113,7 @@ for size in small medium large; do
 
     /usr/bin/time -v spark-submit "$SPARK_SCRIPT" \
       "$spark_input" \
-      "hdfs://$out" \
+      "hdfs://namenode:9000$out" \
       "$p" \
       "$STOPWORDS_LOCAL" \
       > "$log" 2>&1
