@@ -94,7 +94,13 @@ for p in $REDUCERS; do
   hdfs dfs -rm -r -f "$out"
 
   run_job "Spark small p$p" "$log" \
-    /usr/bin/time -v spark-submit "$SPARK_SCRIPT" \
+    /usr/bin/time -v spark-submit \
+  --master yarn \
+  --deploy-mode client \
+  --driver-memory 1g \
+  --executor-memory 1g \
+  --executor-cores 2 \
+  "$SPARK_SCRIPT" \
     "$INPUT_SPARK" "hdfs://namenode:9000$out" "$p" "$STOPWORDS_LOCAL"
 
   echo -n "lines: "
