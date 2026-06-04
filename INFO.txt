@@ -13,6 +13,10 @@ chmod +x ~/Cloud/run_tests_small.sh
 bash ~/Cloud/run_tests_small.sh
 
 
+--executor-memory 2g
+--conf spark.executor.memoryOverhead=768
+
+
 
 
 cd ~/Cloud && git fetch origin && git reset --hard origin/main
