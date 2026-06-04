@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -u
 
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export HADOOP_HOME=/opt/hadoop
@@ -9,227 +10,154 @@ export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/bin:$SPARK_HOME/sbin:
 
 cd ~/Cloud
 
-REDUCERS="1 2 4 8 16 24"
+PARTITIONS="1 2 4 8 16 24"
 
-JAR="$HOME/Cloud/hadoop-java/target/hadoop-inverted-index-1.0.jar"
 SPARK_SCRIPT="$HOME/Cloud/spark-python/inverted_index_spark.py"
 SEQ_SCRIPT="$HOME/Cloud/sequential-python/inverted_index_sequential.py"
 
-STOPWORDS_HDFS="/stopwords.txt"
 STOPWORDS_LOCAL="$HOME/Cloud/hadoop-java/src/main/resources/stopwords.txt"
 
-BASE_OUT="/output/final-exp-v3"
-LOG_DIR="results/logs/final_exp_v3"
-ANALYSIS_DIR="results/analysis/final_exp_v3"
-SEQ_OUT_DIR="$ANALYSIS_DIR/sequential_outputs"
+INPUT_SPARK="hdfs:///input/small/*/*"
+LOCAL_INPUT="/var/backups/hadoop/backup_before_reinstall/AllDatasets/Small"
 
-declare -A HDFS_INPUTS
-HDFS_INPUTS[small]="/input/small/*/*"
-HDFS_INPUTS[medium]="/input/gutenberg-medium"
-HDFS_INPUTS[large]="/input/gutenberg-large"
+OUT_BASE="/output/final-exp-small"
+LOG_DIR="results/logs/final_exp_small"
+ANALYSIS_DIR="results/analysis/final_exp_small"
+SUMMARY_DIR="results/analysis/final_exp_small_summary"
 
-declare -A SPARK_INPUTS
-SPARK_INPUTS[small]="hdfs:///input/small/*/*"
-SPARK_INPUTS[medium]="hdfs:///input/gutenberg-medium"
-SPARK_INPUTS[large]="hdfs:///input/gutenberg-large"
+SEQ_OUT="$ANALYSIS_DIR/sequential_outputs/index_small.txt"
+SEQ_LOG="$LOG_DIR/small_sequential.log"
 
-declare -A LOCAL_INPUTS
-LOCAL_INPUTS[small]="/var/backups/hadoop/backup_before_reinstall/datasets"
-LOCAL_INPUTS[medium]="/var/backups/hadoop/backup_before_reinstall/gutenberg/medium"
-LOCAL_INPUTS[large]="/var/backups/hadoop/backup_before_reinstall/gutenberg/large"
+mkdir -p "$LOG_DIR" "$ANALYSIS_DIR" "$(dirname "$SEQ_OUT")"
 
-echo "=== CLEAN PREVIOUS V3 RESULTS ==="
-hdfs dfs -rm -r -f "$BASE_OUT"
-rm -rf "$LOG_DIR" "$ANALYSIS_DIR"
-mkdir -p "$LOG_DIR" "$ANALYSIS_DIR" "$SEQ_OUT_DIR"
+run_job () {
+  label="$1"
+  log="$2"
+  shift 2
 
-echo "=== CHECK CLUSTER ===" | tee "$ANALYSIS_DIR/cluster_info.txt"
-yarn node -list -all | tee -a "$ANALYSIS_DIR/cluster_info.txt"
-hdfs dfsadmin -report | grep -E "Live datanodes|Name:|Hostname|DFS Used|DFS Remaining" | tee -a "$ANALYSIS_DIR/cluster_info.txt"
+  echo "=== $label ==="
+  start=$(date +%s)
 
-echo "=== BUILD HADOOP PROJECT ==="
-cd ~/Cloud/hadoop-java
-mvn clean package
-cd ~/Cloud
+  "$@" > "$log" 2>&1
+  code=$?
 
-echo "=== UPLOAD STOPWORDS ==="
-hdfs dfs -put -f "$STOPWORDS_LOCAL" "$STOPWORDS_HDFS"
+  end=$(date +%s)
+  sec=$((end - start))
 
-echo "=== DATASET CHECK ===" | tee "$ANALYSIS_DIR/dataset_info.txt"
-for p in /input/small /input/gutenberg-medium /input/gutenberg-large; do
-  echo "--- $p ---" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-  hdfs dfs -du -s -h "$p" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-  hdfs dfs -count "$p" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-done
+  echo "Finished $label | exit=$code | seconds=${sec}s"
+  echo "Elapsed seconds: $sec" >> "$log"
 
-echo "=== LOCAL DATASET CHECK ===" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-for p in \
-  "/var/backups/hadoop/backup_before_reinstall/datasets" \
-  "/var/backups/hadoop/backup_before_reinstall/gutenberg/medium" \
-  "/var/backups/hadoop/backup_before_reinstall/gutenberg/large"
-do
-  echo "--- $p ---" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-  [ -d "$p" ] && echo "EXISTS" | tee -a "$ANALYSIS_DIR/dataset_info.txt" || echo "MISSING" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-  [ -d "$p" ] && find "$p" -type f -name "*.txt" | wc -l | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-  [ -d "$p" ] && du -sh "$p" | tee -a "$ANALYSIS_DIR/dataset_info.txt"
-done
+  if [ "$code" -ne 0 ]; then
+    echo "FAILED. Last log lines:"
+    tail -n 60 "$log"
+    exit "$code"
+  fi
+}
 
-echo "=== START DISTRIBUTED EXPERIMENTS ==="
+echo "=== RUN SPARK SMALL ONLY AND REPLACE OLD SPARK OUTPUTS ==="
 
-for size in small medium large; do
-  hdfs_input="${HDFS_INPUTS[$size]}"
-  spark_input="${SPARK_INPUTS[$size]}"
+for p in $PARTITIONS; do
+  out="$OUT_BASE/small/spark-optimized-p$p"
+  log="$LOG_DIR/small_spark-optimized-p$p.log"
 
-  for r in $REDUCERS; do
-    echo "=== Hadoop BASE | dataset=$size | reducers=$r ==="
-    out="$BASE_OUT/$size/hadoop-base-r$r"
-    log="$LOG_DIR/${size}_hadoop-base-r$r.log"
-    hdfs dfs -rm -r -f "$out"
+  hdfs dfs -rm -r -f "$out"
 
-    /usr/bin/time -v hadoop jar "$JAR" \
-      it.unipi.cloud.InvertedIndex \
-      "$hdfs_input" \
-      "$out" \
-      "$r" \
-      "$STOPWORDS_HDFS" \
-      > "$log" 2>&1
-
-    echo "Finished Hadoop BASE $size r$r, exit=$?"
-  done
-
-  for r in $REDUCERS; do
-    echo "=== Hadoop INMAPPER | dataset=$size | reducers=$r ==="
-    out="$BASE_OUT/$size/hadoop-inmapper-r$r"
-    log="$LOG_DIR/${size}_hadoop-inmapper-r$r.log"
-    hdfs dfs -rm -r -f "$out"
-
-    /usr/bin/time -v hadoop jar "$JAR" \
-      it.unipi.cloud.InvertedIndexInMapper \
-      "$hdfs_input" \
-      "$out" \
-      "$r" \
-      "$STOPWORDS_HDFS" \
-      > "$log" 2>&1
-
-    echo "Finished Hadoop INMAPPER $size r$r, exit=$?"
-  done
-
-  for p in $REDUCERS; do
-    echo "=== Spark OPTIMIZED | dataset=$size | partitions=$p ==="
-    out="$BASE_OUT/$size/spark-optimized-p$p"
-    log="$LOG_DIR/${size}_spark-optimized-p$p.log"
-    hdfs dfs -rm -r -f "$out"
-
-    /usr/bin/time -v spark-submit "$SPARK_SCRIPT" \
-      "$spark_input" \
+  run_job "Spark small p$p" "$log" \
+    /usr/bin/time -v spark-submit \
+      --master yarn \
+      --deploy-mode client \
+      --driver-memory 1g \
+      --executor-memory 1g \
+      --executor-cores 2 \
+      "$SPARK_SCRIPT" \
+      "$INPUT_SPARK" \
       "hdfs://namenode:9000$out" \
       "$p" \
-      "$STOPWORDS_LOCAL" \
-      > "$log" 2>&1
+      "$STOPWORDS_LOCAL"
 
-    echo "Finished Spark OPTIMIZED $size p$p, exit=$?"
-  done
+  echo -n "lines: "
+  hdfs dfs -cat "$out/part-*" 2>/dev/null | wc -l
 done
 
-echo "=== START SEQUENTIAL PYTHON EXPERIMENTS ===" | tee "$ANALYSIS_DIR/sequential_summary.txt"
+echo "=== RUN SEQUENTIAL PYTHON SMALL ==="
 
-for size in small medium large; do
-  input="${LOCAL_INPUTS[$size]}"
-  output="$SEQ_OUT_DIR/index_${size}.txt"
-  log="$LOG_DIR/${size}_sequential.log"
-
-  echo "=== Sequential Python | dataset=$size ===" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-  echo "input=$input" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-
+run_job "Sequential Python small" "$SEQ_LOG" \
   /usr/bin/time -v python3 "$SEQ_SCRIPT" \
-    "$input" \
-    "$output" \
-    > "$ANALYSIS_DIR/${size}_sequential_stdout.txt" 2> "$log"
+    "$LOCAL_INPUT" \
+    "$SEQ_OUT"
 
-  echo "exit_code=$?" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-  echo "index_terms=$(wc -l < "$output" 2>/dev/null || echo 0)" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-  echo "output_size=$(du -h "$output" 2>/dev/null | awk '{print $1}')" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-  grep -E "Elapsed|Maximum resident|User time|System time|Percent of CPU" "$log" | tee -a "$ANALYSIS_DIR/sequential_summary.txt"
-done
+echo -n "sequential lines: "
+wc -l < "$SEQ_OUT"
 
-echo "=== PERFORMANCE SUMMARY ===" | tee "$ANALYSIS_DIR/performance_summary.txt"
-for log in "$LOG_DIR"/*.log; do
-  [ -f "$log" ] || continue
-  name="$(basename "$log")"
+echo "=== CREATE LIGHT SUMMARY ARCHIVE FROM EXISTING HADOOP + NEW SPARK + SEQUENTIAL ==="
 
-  if echo "$name" | grep -q "sequential"; then
-    continue
-  fi
-
-  echo "--- $name ---" | tee -a "$ANALYSIS_DIR/performance_summary.txt"
-  grep -E "Elapsed|Maximum resident|User time|System time|Percent of CPU|CPU time spent|Physical memory|Virtual memory|Total time spent|Launched map tasks|Launched reduce tasks|Map input records|Map output records|Reduce input records|Reduce output records|FILE: Number of bytes|HDFS: Number of bytes|Job Finished|Job failed|Exception|ERROR" "$log" | tee -a "$ANALYSIS_DIR/performance_summary.txt"
-done
-
-echo "=== LINE COUNTS ===" | tee "$ANALYSIS_DIR/line_counts.txt"
-for size in small medium large; do
-  for impl in hadoop-base hadoop-inmapper; do
-    for r in $REDUCERS; do
-      path="$BASE_OUT/$size/$impl-r$r"
-      echo -n "$path: " | tee -a "$ANALYSIS_DIR/line_counts.txt"
-      hdfs dfs -cat "$path/part-*" 2>/dev/null | wc -l | tee -a "$ANALYSIS_DIR/line_counts.txt"
-    done
-  done
-
-  for p in $REDUCERS; do
-    path="$BASE_OUT/$size/spark-optimized-p$p"
-    echo -n "$path: " | tee -a "$ANALYSIS_DIR/line_counts.txt"
-    hdfs dfs -cat "$path/part-*" 2>/dev/null | wc -l | tee -a "$ANALYSIS_DIR/line_counts.txt"
-  done
-
-  seq_file="$SEQ_OUT_DIR/index_${size}.txt"
-  echo -n "sequential-$size: " | tee -a "$ANALYSIS_DIR/line_counts.txt"
-  wc -l < "$seq_file" 2>/dev/null | tee -a "$ANALYSIS_DIR/line_counts.txt"
-done
-
-echo "=== OUTPUT SIZES ===" | tee "$ANALYSIS_DIR/output_sizes.txt"
-hdfs dfs -du -s -h "$BASE_OUT"/*/* 2>/dev/null | tee -a "$ANALYSIS_DIR/output_sizes.txt"
-du -h "$SEQ_OUT_DIR"/index_*.txt 2>/dev/null | tee -a "$ANALYSIS_DIR/output_sizes.txt"
-
-echo "=== SAMPLE OUTPUTS ==="
-mkdir -p "$ANALYSIS_DIR/samples"
-for size in small medium large; do
-  hdfs dfs -cat "$BASE_OUT/$size/hadoop-inmapper-r1/part-*" 2>/dev/null | head -20 > "$ANALYSIS_DIR/samples/${size}_hadoop_inmapper_sample.txt"
-  hdfs dfs -cat "$BASE_OUT/$size/spark-optimized-p1/part-*" 2>/dev/null | head -20 > "$ANALYSIS_DIR/samples/${size}_spark_sample.txt"
-  head -20 "$SEQ_OUT_DIR/index_${size}.txt" 2>/dev/null > "$ANALYSIS_DIR/samples/${size}_sequential_sample.txt"
-done
-
-echo "=== FINAL SUMMARY ===" | tee "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/cluster_info.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/dataset_info.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/line_counts.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/output_sizes.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/sequential_summary.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-cat "$ANALYSIS_DIR/performance_summary.txt" | tee -a "$ANALYSIS_DIR/final_summary.txt"
-
-echo "=== CREATE SUMMARY ARCHIVE WITHOUT FULL SEQUENTIAL INDEX FILES ==="
-SUMMARY_DIR="results/analysis/final_exp_v3_summary"
 rm -rf "$SUMMARY_DIR"
-mkdir -p "$SUMMARY_DIR/samples" "$SUMMARY_DIR/logs"
+mkdir -p "$SUMMARY_DIR/logs" "$SUMMARY_DIR/samples"
 
-cp "$ANALYSIS_DIR"/cluster_info.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/dataset_info.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/line_counts.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/output_sizes.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/performance_summary.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/sequential_summary.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/final_summary.txt "$SUMMARY_DIR"/ 2>/dev/null || true
-cp "$ANALYSIS_DIR"/samples/* "$SUMMARY_DIR/samples/" 2>/dev/null || true
-cp "$LOG_DIR"/*_sequential.log "$SUMMARY_DIR/logs/" 2>/dev/null || true
+cp "$LOG_DIR"/*.log "$SUMMARY_DIR/logs/" 2>/dev/null || true
 
-cat > "$SUMMARY_DIR/README.txt" << 'EOF'
-Final experiment v3 summary archive.
-Contains all summary metrics, line counts, output sizes, samples, and sequential logs.
-Full sequential index output files are excluded because they are large.
+rm -f "$SUMMARY_DIR/line_counts.txt"
+
+for path in \
+  /output/final-exp-small/small/hadoop-base-r1 \
+  /output/final-exp-small/small/hadoop-base-r2 \
+  /output/final-exp-small/small/hadoop-base-r4 \
+  /output/final-exp-small/small/hadoop-base-r8 \
+  /output/final-exp-small/small/hadoop-base-r16 \
+  /output/final-exp-small/small/hadoop-base-r24 \
+  /output/final-exp-small/small/hadoop-inmapper-r1 \
+  /output/final-exp-small/small/hadoop-inmapper-r2 \
+  /output/final-exp-small/small/hadoop-inmapper-r4 \
+  /output/final-exp-small/small/hadoop-inmapper-r8 \
+  /output/final-exp-small/small/hadoop-inmapper-r16 \
+  /output/final-exp-small/small/hadoop-inmapper-r24 \
+  /output/final-exp-small/small/spark-optimized-p1 \
+  /output/final-exp-small/small/spark-optimized-p2 \
+  /output/final-exp-small/small/spark-optimized-p4 \
+  /output/final-exp-small/small/spark-optimized-p8 \
+  /output/final-exp-small/small/spark-optimized-p16 \
+  /output/final-exp-small/small/spark-optimized-p24
+do
+  echo -n "$path: " >> "$SUMMARY_DIR/line_counts.txt"
+  hdfs dfs -cat "$path/part-*" 2>/dev/null | wc -l >> "$SUMMARY_DIR/line_counts.txt"
+done
+
+echo -n "sequential-small: " >> "$SUMMARY_DIR/line_counts.txt"
+wc -l < "$SEQ_OUT" >> "$SUMMARY_DIR/line_counts.txt"
+
+hdfs dfs -du -s -h /output/final-exp-small/small/* > "$SUMMARY_DIR/output_sizes.txt" 2>/dev/null
+du -h "$SEQ_OUT" >> "$SUMMARY_DIR/output_sizes.txt" 2>/dev/null
+
+cat > "$SUMMARY_DIR/sequential_summary.txt" <<EOF
+Sequential Python small dataset
+Input: $LOCAL_INPUT
+Output: $SEQ_OUT
+Lines: $(wc -l < "$SEQ_OUT")
+Time:
+$(grep -E "Elapsed|Elapsed seconds|User time|System time|Percent of CPU|Maximum resident|Exit status" "$SEQ_LOG")
 EOF
 
-tar -czf results/analysis/final_exp_v3_summary.tar.gz -C results/analysis final_exp_v3_summary
+{
+  for log in "$SUMMARY_DIR/logs"/*.log; do
+    [ -f "$log" ] || continue
+    echo "--- $(basename "$log") ---"
+    grep -E "Elapsed|Elapsed seconds|Maximum resident|User time|System time|Percent of CPU|Launched map tasks|Launched reduce tasks|Map input records|Map output records|Reduce input records|Reduce output records|Job Finished|Job failed|Exception|ERROR|Exit status" "$log"
+  done
+} > "$SUMMARY_DIR/performance_summary.txt"
+
+hdfs dfs -cat /output/final-exp-small/small/hadoop-inmapper-r1/part-* 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/small_hadoop_inmapper_sample.txt"
+hdfs dfs -cat /output/final-exp-small/small/spark-optimized-p1/part-* 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/small_spark_sample.txt"
+head -20 "$SEQ_OUT" > "$SUMMARY_DIR/samples/small_sequential_sample.txt"
+
+cat > "$SUMMARY_DIR/README.txt" <<'EOF'
+Small dataset light summary archive.
+Contains existing Hadoop results, replaced Spark-on-YARN results, sequential Python summary, logs, samples, line counts, and output sizes.
+Full sequential index output is excluded to keep archive small.
+EOF
+
+tar -czf results/analysis/final_exp_small_summary.tar.gz \
+  -C results/analysis final_exp_small_summary
+
+ls -lh results/analysis/final_exp_small_summary.tar.gz
 
 echo "=== DONE ==="
-echo "Send me:"
-echo "~/Cloud/results/analysis/final_exp_v3_summary.tar.gz"
-ls -lh results/analysis/final_exp_v3_summary.tar.gz
