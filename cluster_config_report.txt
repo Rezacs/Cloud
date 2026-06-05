@@ -1,0 +1,522 @@
+===== NODE HARDWARE / OS / JAVA =====
+
+==================== namenode ====================
+--- hostname / IP ---
+namenode
+10.1.1.166 172.17.0.1 
+--- CPU ---
+2
+CPU(s):                                  2
+On-line CPU(s) list:                     0,1
+Model name:                              Intel(R) Xeon(R) Silver 4208 CPU @ 2.10GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               2
+NUMA node0 CPU(s):                       0,1
+--- RAM ---
+               total        used        free      shared  buff/cache   available
+Mem:           6.8Gi       2.6Gi       1.8Gi       0.0Ki       2.4Gi       3.9Gi
+Swap:             0B          0B          0B
+--- DISK ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1        39G   18G   21G  47% /
+NAME    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sr0      11:0    1  364K  0 rom  
+vda     252:0    0   40G  0 disk 
+├─vda1  252:1    0 39.9G  0 part /
+├─vda14 252:14   0    4M  0 part 
+└─vda15 252:15   0  106M  0 part /boot/efi
+--- Java ---
+openjdk version "1.8.0_492"
+OpenJDK Runtime Environment (build 1.8.0_492-8u492-ga~us2-0ubuntu1~22.04.1-b09)
+OpenJDK 64-Bit Server VM (build 25.492-b09, mixed mode)
+--- Hadoop/Spark env paths ---
+JAVA_HOME=
+HADOOP_HOME=
+SPARK_HOME=
+--- Running daemons ---
+830633 Jps
+
+==================== datanode2 ====================
+--- hostname / IP ---
+datanode2
+10.1.1.213 192.168.122.1 
+--- CPU ---
+2
+CPU(s):                                  2
+On-line CPU(s) list:                     0,1
+Model name:                              Intel(R) Xeon(R) Silver 4208 CPU @ 2.10GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               2
+NUMA node0 CPU(s):                       0,1
+--- RAM ---
+               total        used        free      shared  buff/cache   available
+Mem:           6.8Gi       741Mi       161Mi       1.0Mi       5.9Gi       5.7Gi
+Swap:             0B          0B          0B
+--- DISK ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1        39G   20G   19G  52% /
+NAME    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0     7:0    0 48.4M  1 loop /snap/snapd/26382
+loop1     7:1    0 63.8M  1 loop /snap/core20/2866
+loop2     7:2    0 63.8M  1 loop /snap/core20/2769
+loop3     7:3    0 13.2M  1 loop /snap/kubectl/3792
+loop4     7:4    0 49.3M  1 loop /snap/snapd/26865
+loop5     7:5    0 13.2M  1 loop /snap/kubectl/3804
+sr0      11:0    1  364K  0 rom  
+vda     252:0    0   40G  0 disk 
+├─vda1  252:1    0 39.9G  0 part /
+├─vda14 252:14   0    4M  0 part 
+└─vda15 252:15   0  106M  0 part /boot/efi
+--- Java ---
+openjdk version "1.8.0_492"
+OpenJDK Runtime Environment (build 1.8.0_492-8u492-ga~us2-0ubuntu1~22.04.1-b09)
+OpenJDK 64-Bit Server VM (build 25.492-b09, mixed mode)
+--- Hadoop/Spark env paths ---
+JAVA_HOME=
+HADOOP_HOME=
+SPARK_HOME=
+--- Running daemons ---
+2323898 Jps
+
+==================== datanode3 ====================
+--- hostname / IP ---
+datanode3
+10.1.1.163 192.168.122.1 192.168.2.1 
+--- CPU ---
+2
+CPU(s):                                  2
+On-line CPU(s) list:                     0,1
+Model name:                              Intel(R) Xeon(R) Silver 4208 CPU @ 2.10GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               2
+NUMA node0 CPU(s):                       0,1
+--- RAM ---
+               total        used        free      shared  buff/cache   available
+Mem:           6.8Gi       705Mi       169Mi       0.0Ki       5.9Gi       5.8Gi
+Swap:             0B          0B          0B
+--- DISK ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1        39G   19G   20G  49% /
+NAME    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sr0      11:0    1  364K  0 rom  
+vda     252:0    0   40G  0 disk 
+├─vda1  252:1    0 39.9G  0 part /
+├─vda14 252:14   0    4M  0 part 
+└─vda15 252:15   0  106M  0 part /boot/efi
+--- Java ---
+openjdk version "1.8.0_492"
+OpenJDK Runtime Environment (build 1.8.0_492-8u492-ga~us2-0ubuntu1~22.04.1-b09)
+OpenJDK 64-Bit Server VM (build 25.492-b09, mixed mode)
+--- Hadoop/Spark env paths ---
+JAVA_HOME=
+HADOOP_HOME=
+SPARK_HOME=
+--- Running daemons ---
+2408105 Jps
+
+===== HADOOP VERSION =====
+Hadoop 3.1.3
+Source code repository https://gitbox.apache.org/repos/asf/hadoop.git -r ba631c436b806728f8ec2f54ab1e289526c90579
+Compiled by ztang on 2019-09-12T02:47Z
+Compiled with protoc 2.5.0
+From source with checksum ec785077c385118ac91aadde5ec9799
+This command was run using /opt/hadoop/share/hadoop/common/hadoop-common-3.1.3.jar
+
+===== SPARK VERSION =====
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 3.1.3
+      /_/
+                        
+Using Scala version 2.12.10, OpenJDK 64-Bit Server VM, 1.8.0_492
+Branch HEAD
+Compiled by user holden on 2022-02-06T22:45:44Z
+Revision d1f8a503a26bcfb4e466d9accc5fa241a7933667
+Url https://github.com/apache/spark
+Type --help for more information.
+
+===== HDFS CLUSTER REPORT =====
+Configured Capacity: 124289077248 (115.75 GB)
+Present Capacity: 97207239397 (90.53 GB)
+DFS Remaining: 63405064192 (59.05 GB)
+DFS Used: 33802175205 (31.48 GB)
+DFS Used%: 34.77%
+Replicated Blocks:
+	Under replicated blocks: 74
+	Blocks with corrupt replicas: 0
+	Missing blocks: 0
+	Missing blocks (with replication factor 1): 0
+	Low redundancy blocks with highest priority to recover: 0
+	Pending deletion blocks: 0
+Erasure Coded Block Groups: 
+	Low redundancy block groups: 0
+	Block groups with corrupt internal blocks: 0
+	Missing block groups: 0
+	Low redundancy blocks with highest priority to recover: 0
+	Pending deletion blocks: 0
+
+-------------------------------------------------
+Live datanodes (3):
+
+Name: 10.1.1.163:9866 (datanode3)
+Hostname: datanode3
+Decommission Status : Normal
+Configured Capacity: 41429692416 (38.58 GB)
+DFS Used: 10806382592 (10.06 GB)
+Non DFS Used: 9444732928 (8.80 GB)
+DFS Remaining: 21161799680 (19.71 GB)
+DFS Used%: 26.08%
+DFS Remaining%: 51.08%
+Configured Cache Capacity: 0 (0 B)
+Cache Used: 0 (0 B)
+Cache Remaining: 0 (0 B)
+Cache Used%: 100.00%
+Cache Remaining%: 0.00%
+Xceivers: 1
+Last contact: Fri Jun 05 11:26:27 UTC 2026
+Last Block Report: Fri Jun 05 08:59:00 UTC 2026
+Num of Blocks: 15179
+
+
+Name: 10.1.1.166:9866 (namenode)
+Hostname: namenode
+Decommission Status : Normal
+Configured Capacity: 41429692416 (38.58 GB)
+DFS Used: 12250169283 (11.41 GB)
+Non DFS Used: 7021977661 (6.54 GB)
+DFS Remaining: 22140768256 (20.62 GB)
+DFS Used%: 29.57%
+DFS Remaining%: 53.44%
+Configured Cache Capacity: 0 (0 B)
+Cache Used: 0 (0 B)
+Cache Remaining: 0 (0 B)
+Cache Used%: 100.00%
+Cache Remaining%: 0.00%
+Xceivers: 1
+Last contact: Fri Jun 05 11:26:29 UTC 2026
+Last Block Report: Fri Jun 05 08:49:09 UTC 2026
+Num of Blocks: 28632
+
+
+Name: 10.1.1.213:9866 (datanode2)
+Hostname: datanode2
+Decommission Status : Normal
+Configured Capacity: 41429692416 (38.58 GB)
+DFS Used: 10745623330 (10.01 GB)
+Non DFS Used: 10564795614 (9.84 GB)
+DFS Remaining: 20102496256 (18.72 GB)
+DFS Used%: 25.94%
+DFS Remaining%: 48.52%
+Configured Cache Capacity: 0 (0 B)
+Cache Used: 0 (0 B)
+Cache Remaining: 0 (0 B)
+Cache Used%: 100.00%
+Cache Remaining%: 0.00%
+Xceivers: 1
+Last contact: Fri Jun 05 11:26:28 UTC 2026
+Last Block Report: Fri Jun 05 07:20:29 UTC 2026
+Num of Blocks: 14871
+
+
+
+===== YARN NODES =====
+2026-06-05 11:26:31,278 INFO client.RMProxy: Connecting to ResourceManager at namenode/10.1.1.166:8032
+Total Nodes:3
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+  namenode:35275	        RUNNING	    namenode:8042	                           0
+ datanode2:41607	        RUNNING	   datanode2:8042	                           0
+ datanode3:46163	        RUNNING	   datanode3:8042	                           0
+
+===== IMPORTANT HADOOP CONFIG FILES =====
+
+========== /opt/hadoop/etc/hadoop/core-site.xml ==========
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://namenode:9000</value>
+    </property>
+</configuration>
+
+========== /opt/hadoop/etc/hadoop/hdfs-site.xml ==========
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>file:///opt/hdfs/namenode</value>
+    </property>
+
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>file:///opt/hdfs/datanode</value>
+    </property>
+
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+
+    <property>
+        <name>dfs.permissions.enabled</name>
+        <value>false</value>
+    </property>
+</configuration>
+
+========== /opt/hadoop/etc/hadoop/yarn-site.xml ==========
+<?xml version="1.0"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>namenode</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_HOME,HADOOP_CONF_DIR,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_MAPRED_HOME,YARN_HOME,PATH</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>4096</value>
+    </property>
+
+    <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>2048</value>
+    </property>
+
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>256</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.resource.cpu-vcores</name>
+        <value>2</value>
+    </property>
+
+    <property>
+        <name>yarn.scheduler.maximum-allocation-vcores</name>
+        <value>2</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>yarn.nodemanager.vmem-pmem-ratio</name>
+        <value>5</value>
+    </property>
+
+</configuration>
+
+========== /opt/hadoop/etc/hadoop/mapred-site.xml ==========
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+
+    <property>
+        <name>mapreduce.application.classpath</name>
+        <value>
+            $HADOOP_HOME/etc/hadoop,
+            $HADOOP_HOME/share/hadoop/common/*,
+            $HADOOP_HOME/share/hadoop/common/lib/*,
+            $HADOOP_HOME/share/hadoop/hdfs/*,
+            $HADOOP_HOME/share/hadoop/hdfs/lib/*,
+            $HADOOP_HOME/share/hadoop/mapreduce/*,
+            $HADOOP_HOME/share/hadoop/mapreduce/lib/*,
+            $HADOOP_HOME/share/hadoop/yarn/*,
+            $HADOOP_HOME/share/hadoop/yarn/lib/*
+        </value>
+    </property>
+
+    <property>
+        <name>OLD_DISABLED_yarn.app.mapreduce.am.resource.mb</name>
+        <value>512</value>
+    </property>
+
+    <property>
+        <name>OLD_DISABLED_mapreduce.map.memory.mb</name>
+        <value>512</value>
+    </property>
+
+    <property>
+        <name>OLD_DISABLED_mapreduce.reduce.memory.mb</name>
+        <value>512</value>
+    </property>
+
+    <property>
+        <name>mapreduce.map.cpu.vcores</name>
+        <value>1</value>
+    </property>
+
+    <property>
+        <name>mapreduce.reduce.cpu.vcores</name>
+        <value>1</value>
+    </property>
+
+    <property>
+        <name>OLD_DISABLED_mapreduce.map.speculative</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>OLD_DISABLED_mapreduce.reduce.speculative</name>
+        <value>false</value>
+    </property>
+
+
+    <property>
+        <name>mapreduce.job.jvm.numtasks</name>
+        <value>-1</value>
+    </property>
+
+    <property>
+        <name>mapreduce.map.speculative</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>mapreduce.reduce.speculative</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>mapreduce.map.memory.mb</name>
+        <value>768</value>
+    </property>
+
+    <property>
+        <name>mapreduce.reduce.memory.mb</name>
+        <value>768</value>
+    </property>
+
+    <property>
+        <name>mapreduce.map.java.opts</name>
+        <value>-Xmx512m</value>
+    </property>
+
+    <property>
+        <name>mapreduce.reduce.java.opts</name>
+        <value>-Xmx512m</value>
+    </property>
+
+    <property>
+        <name>yarn.app.mapreduce.am.resource.mb</name>
+        <value>768</value>
+    </property>
+
+    <property>
+        <name>yarn.app.mapreduce.am.command-opts</name>
+        <value>-Xmx512m</value>
+    </property>
+
+</configuration>
+
+========== /opt/hadoop/etc/hadoop/workers ==========
+namenode
+datanode2
+datanode3
+
+===== SPARK DEFAULTS =====
+spark.driver.memory                 1g
+spark.executor.memory               1g
+spark.executor.cores                2
+spark.submit.deployMode             client
+
+===== HADOOP ENV =====
+#  JAVA_HOME=/usr/java/testing hdfs dfs -ls
+# Technically, the only required environment variable is JAVA_HOME.
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+# export HADOOP_HOME=
+# export HADOOP_CONF_DIR=${HADOOP_HOME}/etc/hadoop
+# export HADOOP_WORKERS="${HADOOP_CONF_DIR}/workers"
+# ${HADOOP_HOME}/logs by default.
+# export HADOOP_LOG_DIR=${HADOOP_HOME}/logs
+
+===== HDFS INPUT DATASETS: SIZE + FILE COUNT =====
+DATASET                             LOGICAL      REPLICATED   FILES      DIRS      
+/input/archive-1gb-20k              1.0 G        2.0 G        20738      1         
+/input/gutenberg-between-1gb-837    1.0 G        2.0 G        837        1         
+/input/gutenberg-large-4472         1.7 G        3.3 G        4472       1         
+/input/gutenberg-medium-894         338.7 M      677.4 M      894        1         
+/input/news-small-1k                2.5 M        4.9 M        1000       11        
