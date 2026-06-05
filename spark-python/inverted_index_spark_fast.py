@@ -25,7 +25,7 @@ def load_stopwords(sc, path):
 
 def parse_args():
     if len(sys.argv) < 3 or len(sys.argv) > 5:
-        print("Usage: inverted_index_spark.py <input> <output> [numPartitions] [stopwordsPath]")
+        print("Usage: inverted_index_spark_fast.py <input> <output> [numPartitions] [stopwordsPath]")
         sys.exit(1)
 
     input_path = sys.argv[1]
@@ -61,24 +61,28 @@ def main():
 
     sc = SparkContext(conf=conf)
 
-    stopwords_bc = sc.broadcast(load_stopwords(sc, stopwords_path))
+    stopwords = load_stopwords(sc, stopwords_path)
+    stopwords_bc = sc.broadcast(stopwords)
 
     files = sc.wholeTextFiles(input_path, minPartitions=num_partitions * 2)
 
     def file_to_postings(file_content):
         path, text = file_content
         filename = path.rsplit("/", 1)[-1]
-        stopwords = stopwords_bc.value
+        sw = stopwords_bc.value
 
         counts = {}
         text = text.lower()
 
         for match in TOKEN_RE.finditer(text):
             word = match.group(0)
-            if word not in stopwords:
+            if word not in sw:
                 counts[word] = counts.get(word, 0) + 1
 
-        return [(word, f"{filename}:{count}") for word, count in counts.items()]
+        out = []
+        for word, count in counts.items():
+            out.append((word, f"{filename}:{count}"))
+        return out
 
     def create_combiner(v):
         return [v]
