@@ -1,9 +1,12 @@
 import os
 import re
 import sys
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
 
-TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+
 
 def load_stopwords(sc, path):
     if not path:
@@ -23,9 +26,13 @@ def load_stopwords(sc, path):
         if line.strip() and not line.strip().startswith("#")
     }
 
+
 def parse_args():
     if len(sys.argv) < 3 or len(sys.argv) > 5:
-        print("Usage: inverted_index_spark_fast.py <input> <output> [numPartitions] [stopwordsPath]")
+        print(
+            "Usage: inverted_index_spark.py <input> <output> "
+            "[numPartitions] [stopwordsPath]"
+        )
         sys.exit(1)
 
     input_path = sys.argv[1]
@@ -44,12 +51,12 @@ def parse_args():
 
     return input_path, output_path, num_partitions, stopwords_path
 
+
 def main():
     input_path, output_path, num_partitions, stopwords_path = parse_args()
 
     conf = (
         SparkConf()
-        .setAppName("PySpark Inverted Index Fast No Sort")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
         .set("spark.shuffle.compress", "true")
         .set("spark.shuffle.spill.compress", "true")
@@ -59,11 +66,20 @@ def main():
         .set("spark.python.worker.reuse", "true")
     )
 
-    sc = SparkContext(conf=conf)
+    spark = (
+        SparkSession.builder
+        .appName("Spark Inverted Index Optimized No Sort")
+        .config(conf=conf)
+        .getOrCreate()
+    )
+
+    sc = spark.sparkContext
 
     stopwords = load_stopwords(sc, stopwords_path)
     stopwords_bc = sc.broadcast(stopwords)
 
+    # Do not overdo this on a tiny cluster.
+    # Your best range was p8/p16, so input partitions around 2x output partitions is enough.
     files = sc.wholeTextFiles(input_path, minPartitions=num_partitions * 2)
 
     def file_to_postings(file_content):
@@ -72,17 +88,14 @@ def main():
         sw = stopwords_bc.value
 
         counts = {}
-        text = text.lower()
 
         for match in TOKEN_RE.finditer(text):
-            word = match.group(0)
+            word = match.group(0).lower()
             if word not in sw:
                 counts[word] = counts.get(word, 0) + 1
 
-        out = []
         for word, count in counts.items():
-            out.append((word, f"{filename}:{count}"))
-        return out
+            yield word, f"{filename}:{count}"
 
     def create_combiner(v):
         return [v]
@@ -107,10 +120,13 @@ def main():
         .mapValues(lambda postings: " ".join(sorted(postings)))
     )
 
+    # Important: no sortByKey here.
+    # Removing sortByKey avoids a second wide shuffle.
     inverted_index.map(lambda x: f"{x[0]}\t{x[1]}").saveAsTextFile(output_path)
 
     stopwords_bc.destroy()
-    sc.stop()
+    spark.stop()
+
 
 if __name__ == "__main__":
     main()
