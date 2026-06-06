@@ -10,8 +10,8 @@ export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/bin:$SPARK_HOME/sbin:
 
 cd ~/Cloud
 
-REDUCERS="1 2 4 8 16 24"
-NODES="namenode datanode2 datanode3"
+ALL_PARAMS="1 2 4 8 16 24"
+SAFE_20K_PARAMS="4 8 16 24"
 
 JAR="$HOME/Cloud/hadoop-java/target/hadoop-inverted-index-1.0.jar"
 SPARK_SCRIPT="$HOME/Cloud/spark-python/spark_inverted_index_fastest.py"
@@ -22,8 +22,33 @@ STOPWORDS_HDFS="/stopwords.txt"
 STOPWORDS_LOCAL="$HOME/Cloud/hadoop-java/src/main/resources/stopwords.txt"
 
 GLOBAL_CSV="results/analysis/final_all_experiments_summary.csv"
+
+params_for_dataset () {
+  if [ "$1" = "archive-1gb-20k" ]; then
+    echo "$SAFE_20K_PARAMS"
+  else
+    echo "$ALL_PARAMS"
+  fi
+}
+
+echo "=== KILL OLD JOBS FIRST ==="
+yarn application -list | awk '/application_/ {print $1}' | xargs -r yarn application -kill
+pkill -f spark-submit 2>/dev/null || true
+pkill -f SparkSubmit 2>/dev/null || true
+pkill -f RunJar 2>/dev/null || true
+pkill -f MRAppMaster 2>/dev/null || true
+pkill -f YarnChild 2>/dev/null || true
+pkill -f run_all_datasets 2>/dev/null || true
+
+echo "=== DELETE OLD GENERATED OUTPUTS / LOGS ==="
+hdfs dfs -rm -r -f /output/* 2>/dev/null || true
+hdfs dfs -rm -r -f /tmp/* 2>/dev/null || true
+
+rm -rf results/logs results/analysis results/monitor results/summary
+rm -f *.log *_summary.csv final_all_experiments_summary.csv
+
 mkdir -p results/analysis
-echo "dataset,method,param,exit_status,elapsed_seconds,wall_time,max_process_rss_kb,max_cluster_ram_used_gb,lines" > "$GLOBAL_CSV"
+echo "dataset,method,param,exit_status,elapsed_seconds,wall_time,max_process_rss_kb,max_yarn_allocated_gb,lines" > "$GLOBAL_CSV"
 
 echo "=== CREATE / UPDATE FASTEST PYSPARK SCRIPT ==="
 mkdir -p spark-python
@@ -139,7 +164,7 @@ if __name__ == "__main__":
     main()
 PY
 
-run_cmd_with_monitor () {
+run_cmd_with_yarn_monitor () {
   dataset="$1"
   method="$2"
   param="$3"
@@ -148,25 +173,34 @@ run_cmd_with_monitor () {
   shift 5
 
   echo "=== $dataset | $method | $param ==="
-  echo "timestamp,node,total_mb,used_mb,free_mb,available_mb" > "$mon"
+  echo "timestamp,node_id,used_yarn_mb,configured_yarn_mb,running_containers" > "$mon"
 
   (
     while true; do
       ts=$(date "+%Y-%m-%d %H:%M:%S")
-      for node in $NODES; do
-        ssh hadoop@$node "free -m | awk '/^Mem:/ {print \$2\",\" \$3\",\" \$4\",\" \$7}'" 2>/dev/null \
-          | awk -v ts="$ts" -v node="$node" '{print ts "," node "," $0}'
+
+      yarn node -list -all 2>/dev/null | awk '$2=="RUNNING" {print $1","$4}' | while IFS=, read nodeid containers; do
+        status=$(yarn node -status "$nodeid" 2>/dev/null)
+
+        used=$(echo "$status" | awk -F'[<,:>]' '/Used Resources/ {
+          for (i=1; i<=NF; i++) if ($i ~ /memory/) {gsub(/ /,"",$(i+1)); print $(i+1)}
+        }' | tail -1)
+
+        configured=$(echo "$status" | awk -F'[<,:>]' '/Configured Resources/ {
+          for (i=1; i<=NF; i++) if ($i ~ /memory/) {gsub(/ /,"",$(i+1)); print $(i+1)}
+        }' | tail -1)
+
+        echo "$ts,$nodeid,${used:-0},${configured:-0},${containers:-0}"
       done
+
       sleep 5
     done
   ) >> "$mon" &
   monpid=$!
 
   start=$(date +%s)
-
   timeout 7200 "$@" > "$log" 2>&1
   code=$?
-
   end=$(date +%s)
   sec=$((end - start))
 
@@ -187,10 +221,10 @@ parse_rss () {
   grep -E "Maximum resident" "$1" | tail -1 | awk '{print $6}'
 }
 
-cluster_max_gb () {
+yarn_alloc_max_gb () {
   awk -F, '
     NR > 1 {
-      used[$1] += $4
+      used[$1] += $3
     }
     END {
       max = 0
@@ -204,8 +238,22 @@ count_lines () {
   hdfs dfs -cat "$1/part-*" 2>/dev/null | wc -l
 }
 
+record_csv () {
+  dataset="$1"
+  method="$2"
+  param="$3"
+  code="$4"
+  sec="$5"
+  log="$6"
+  mon="$7"
+  lines="$8"
+
+  echo "$dataset,$method,$param,$code,$sec,$(parse_wall "$log"),$(parse_rss "$log"),$(yarn_alloc_max_gb "$mon"),$lines" >> "$GLOBAL_CSV"
+}
+
 make_summary () {
   DATASET="$1"
+  PARAMS="$(params_for_dataset "$DATASET")"
 
   OUT_BASE="/output/final-exp-$DATASET/$DATASET"
   LOG_DIR="results/logs/final_exp_$DATASET"
@@ -219,24 +267,24 @@ make_summary () {
 
   rm -rf "$SUMMARY_DIR"
   rm -f "$TAR_FILE"
-  mkdir -p "$SUMMARY_DIR/logs" "$SUMMARY_DIR/monitor" "$SUMMARY_DIR/samples"
+  mkdir -p "$SUMMARY_DIR/logs" "$SUMMARY_DIR/yarn_monitor" "$SUMMARY_DIR/samples"
 
   cp "$LOG_DIR"/*.log "$SUMMARY_DIR/logs/" 2>/dev/null || true
-  cp "$MONITOR_DIR"/*.csv "$SUMMARY_DIR/monitor/" 2>/dev/null || true
+  cp "$MONITOR_DIR"/*.csv "$SUMMARY_DIR/yarn_monitor/" 2>/dev/null || true
   cp "$ANALYSIS_DIR/dataset_info.txt" "$SUMMARY_DIR/" 2>/dev/null || true
 
   {
-    echo "job,max_cluster_ram_used_gb"
-    for csv in "$SUMMARY_DIR"/monitor/*.csv; do
+    echo "job,max_yarn_allocated_gb"
+    for csv in "$SUMMARY_DIR"/yarn_monitor/*.csv; do
       [ -f "$csv" ] || continue
       job=$(basename "$csv" .csv)
-      echo "$job,$(cluster_max_gb "$csv")"
+      echo "$job,$(yarn_alloc_max_gb "$csv")"
     done
-  } > "$SUMMARY_DIR/cluster_memory_summary.csv"
+  } > "$SUMMARY_DIR/yarn_allocated_memory_summary.csv"
 
   rm -f "$SUMMARY_DIR/line_counts.txt"
 
-  for r in $REDUCERS; do
+  for r in $PARAMS; do
     for method in hadoop-base hadoop-inmapper; do
       path="$OUT_BASE/$method-r$r"
       echo -n "$path: " >> "$SUMMARY_DIR/line_counts.txt"
@@ -244,7 +292,7 @@ make_summary () {
     done
   done
 
-  for p in $REDUCERS; do
+  for p in $PARAMS; do
     for method in pyspark-fastest java-spark; do
       path="$OUT_BASE/$method-p$p"
       echo -n "$path: " >> "$SUMMARY_DIR/line_counts.txt"
@@ -266,10 +314,10 @@ make_summary () {
     done
   } > "$SUMMARY_DIR/performance_summary.txt"
 
-  hdfs dfs -cat "$OUT_BASE/hadoop-base-r1/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_hadoop_base_sample.txt"
-  hdfs dfs -cat "$OUT_BASE/hadoop-inmapper-r1/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_hadoop_inmapper_sample.txt"
-  hdfs dfs -cat "$OUT_BASE/pyspark-fastest-p1/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_pyspark_fastest_sample.txt"
-  hdfs dfs -cat "$OUT_BASE/java-spark-p1/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_java_spark_sample.txt"
+  hdfs dfs -cat "$OUT_BASE/hadoop-base-r${PARAMS%% *}/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_hadoop_base_sample.txt"
+  hdfs dfs -cat "$OUT_BASE/hadoop-inmapper-r${PARAMS%% *}/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_hadoop_inmapper_sample.txt"
+  hdfs dfs -cat "$OUT_BASE/pyspark-fastest-p${PARAMS%% *}/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_pyspark_fastest_sample.txt"
+  hdfs dfs -cat "$OUT_BASE/java-spark-p${PARAMS%% *}/part-*" 2>/dev/null | head -20 > "$SUMMARY_DIR/samples/${DATASET}_java_spark_sample.txt"
   head -20 "$SEQ_OUT" > "$SUMMARY_DIR/samples/${DATASET}_sequential_sample.txt" 2>/dev/null || true
 
   cat > "$SUMMARY_DIR/README.txt" <<EOF2
@@ -277,9 +325,10 @@ Light summary archive for $DATASET.
 Includes Hadoop Base, Hadoop InMapper, PySpark Fastest, Java Spark, and Sequential Python.
 Distributed jobs read from HDFS.
 Sequential Python uses a local temporary copy created from HDFS before timing.
-RAM was sampled every 5 seconds from namenode, datanode2, and datanode3.
-cluster_memory_summary.csv reports maximum summed RAM used across the three machines.
-Each command was protected with a 2-hour timeout, so failed/timeout jobs are logged and the script continues.
+YARN allocated memory was sampled every 5 seconds using yarn node -status.
+yarn_allocated_memory_summary.csv reports the maximum summed YARN allocated memory across all active NodeManagers.
+For archive-1gb-20k, only safer reducer/partition values were used: $SAFE_20K_PARAMS.
+Each command has a 2-hour timeout; failed/timeout jobs are logged and the script continues.
 EOF2
 
   tar -czf "$TAR_FILE" -C results/analysis "final_exp_${DATASET}_summary"
@@ -287,24 +336,13 @@ EOF2
   echo "=== SUMMARY CREATED ==="
   ls -lh "$TAR_FILE"
   cat "$SUMMARY_DIR/line_counts.txt"
-}
-
-record_csv () {
-  dataset="$1"
-  method="$2"
-  param="$3"
-  code="$4"
-  sec="$5"
-  log="$6"
-  mon="$7"
-  lines="$8"
-
-  echo "$dataset,$method,$param,$code,$sec,$(parse_wall "$log"),$(parse_rss "$log"),$(cluster_max_gb "$mon"),$lines" >> "$GLOBAL_CSV"
+  cat "$SUMMARY_DIR/yarn_allocated_memory_summary.csv"
 }
 
 run_dataset () {
   DATASET="$1"
   HDFS_INPUT="$2"
+  PARAMS="$(params_for_dataset "$DATASET")"
 
   OUT_BASE="/output/final-exp-$DATASET/$DATASET"
   LOG_DIR="results/logs/final_exp_$DATASET"
@@ -316,6 +354,7 @@ run_dataset () {
   echo
   echo "============================================================"
   echo "START DATASET: $DATASET"
+  echo "PARAMS: $PARAMS"
   echo "============================================================"
 
   hdfs dfs -rm -r -f "/output/final-exp-$DATASET"
@@ -327,24 +366,23 @@ run_dataset () {
   {
     echo "Dataset: $DATASET"
     echo "HDFS input: $HDFS_INPUT"
+    echo "Params: $PARAMS"
     hdfs dfs -du -s -h "$HDFS_INPUT"
     hdfs dfs -count "$HDFS_INPUT"
   } | tee "$ANALYSIS_DIR/dataset_info.txt"
 
   echo "=== HADOOP BASE ==="
-  for r in $REDUCERS; do
+  for r in $PARAMS; do
     out="$OUT_BASE/hadoop-base-r$r"
     log="$LOG_DIR/${DATASET}_hadoop-base-r$r.log"
     mon="$MONITOR_DIR/hadoop-base-r$r.csv"
-
     hdfs dfs -rm -r -f "$out"
-    start=$(date +%s)
 
-    run_cmd_with_monitor "$DATASET" "hadoop-base" "r$r" "$log" "$mon" \
+    start=$(date +%s)
+    run_cmd_with_yarn_monitor "$DATASET" "hadoop-base" "r$r" "$log" "$mon" \
       /usr/bin/time -v hadoop jar "$JAR" \
       it.unipi.cloud.InvertedIndex \
       "$HDFS_INPUT" "$out" "$r" "$STOPWORDS_HDFS"
-
     code=$?
     sec=$(( $(date +%s) - start ))
     lines=$(count_lines "$out")
@@ -353,19 +391,17 @@ run_dataset () {
   done
 
   echo "=== HADOOP INMAPPER ==="
-  for r in $REDUCERS; do
+  for r in $PARAMS; do
     out="$OUT_BASE/hadoop-inmapper-r$r"
     log="$LOG_DIR/${DATASET}_hadoop-inmapper-r$r.log"
     mon="$MONITOR_DIR/hadoop-inmapper-r$r.csv"
-
     hdfs dfs -rm -r -f "$out"
-    start=$(date +%s)
 
-    run_cmd_with_monitor "$DATASET" "hadoop-inmapper" "r$r" "$log" "$mon" \
+    start=$(date +%s)
+    run_cmd_with_yarn_monitor "$DATASET" "hadoop-inmapper" "r$r" "$log" "$mon" \
       /usr/bin/time -v hadoop jar "$JAR" \
       it.unipi.cloud.InvertedIndexInMapper \
       "$HDFS_INPUT" "$out" "$r" "$STOPWORDS_HDFS"
-
     code=$?
     sec=$(( $(date +%s) - start ))
     lines=$(count_lines "$out")
@@ -374,15 +410,14 @@ run_dataset () {
   done
 
   echo "=== PYSPARK FASTEST ==="
-  for p in $REDUCERS; do
+  for p in $PARAMS; do
     out="$OUT_BASE/pyspark-fastest-p$p"
     log="$LOG_DIR/${DATASET}_pyspark-fastest-p$p.log"
     mon="$MONITOR_DIR/pyspark-fastest-p$p.csv"
-
     hdfs dfs -rm -r -f "$out"
-    start=$(date +%s)
 
-    run_cmd_with_monitor "$DATASET" "pyspark-fastest" "p$p" "$log" "$mon" \
+    start=$(date +%s)
+    run_cmd_with_yarn_monitor "$DATASET" "pyspark-fastest" "p$p" "$log" "$mon" \
       /usr/bin/time -v spark-submit \
       --master yarn \
       --deploy-mode client \
@@ -394,7 +429,6 @@ run_dataset () {
       --conf spark.python.worker.reuse=true \
       "$SPARK_SCRIPT" \
       "$HDFS_INPUT" "hdfs://namenode:9000$out" "$p" "$STOPWORDS_LOCAL"
-
     code=$?
     sec=$(( $(date +%s) - start ))
     lines=$(count_lines "$out")
@@ -403,15 +437,14 @@ run_dataset () {
   done
 
   echo "=== JAVA SPARK ==="
-  for p in $REDUCERS; do
+  for p in $PARAMS; do
     out="$OUT_BASE/java-spark-p$p"
     log="$LOG_DIR/${DATASET}_java-spark-p$p.log"
     mon="$MONITOR_DIR/java-spark-p$p.csv"
-
     hdfs dfs -rm -r -f "$out"
-    start=$(date +%s)
 
-    run_cmd_with_monitor "$DATASET" "java-spark" "p$p" "$log" "$mon" \
+    start=$(date +%s)
+    run_cmd_with_yarn_monitor "$DATASET" "java-spark" "p$p" "$log" "$mon" \
       /usr/bin/time -v spark-submit \
       --master yarn \
       --deploy-mode client \
@@ -425,7 +458,6 @@ run_dataset () {
       --class it.unipi.cloud.JavaSparkInvertedIndex \
       "$JAVA_SPARK_JAR" \
       "$HDFS_INPUT" "hdfs://namenode:9000$out" "$p" "$STOPWORDS_LOCAL"
-
     code=$?
     sec=$(( $(date +%s) - start ))
     lines=$(count_lines "$out")
@@ -443,9 +475,8 @@ run_dataset () {
   mon="$MONITOR_DIR/sequential-local.csv"
 
   start=$(date +%s)
-  run_cmd_with_monitor "$DATASET" "sequential-python" "local" "$log" "$mon" \
+  run_cmd_with_yarn_monitor "$DATASET" "sequential-python" "local" "$log" "$mon" \
     /usr/bin/time -v python3 "$SEQ_SCRIPT" "$SEQ_DIR" "$SEQ_OUT"
-
   code=$?
   sec=$(( $(date +%s) - start ))
   lines=$(wc -l < "$SEQ_OUT" 2>/dev/null || echo 0)
@@ -469,11 +500,12 @@ echo "=== UPLOAD STOPWORDS TO HDFS ==="
 hdfs dfs -put -f "$STOPWORDS_LOCAL" "$STOPWORDS_HDFS"
 
 run_dataset "news-small-1k" "/input/news-small-1k"
+run_dataset "archive-largest-5k" "/input/archive-largest-5k"
 run_dataset "gutenberg-medium-894" "/input/gutenberg-medium-894"
 run_dataset "archive-500mb-10k" "/input/archive-500mb-10k"
 run_dataset "gutenberg-between-1gb-837" "/input/gutenberg-between-1gb-837"
-run_dataset "archive-1gb-20k" "/input/archive-1gb-20k"
 run_dataset "gutenberg-large-4472" "/input/gutenberg-large-4472"
+run_dataset "archive-1gb-20k" "/input/archive-1gb-20k"
 
 echo "============================================================"
 echo "ALL DATASETS FINISHED"
