@@ -106,3 +106,7 @@ Phase D — Report
            1          894          355135669 /input/gutenberg-medium
            1         4472         1793799963 /input/gutenberg-large
 hadoop@namenode:~/Cloud$
+
+
+
+Increasing Spark executor memory did not improve performance because the jobs were not memory-bound. YARN allocated more memory, but actual system RAM usage stayed low. In some cases, the larger configuration increased scheduling overhead and caused instability.
