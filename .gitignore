@@ -23,13 +23,13 @@ Thumbs.db
 
 *.zip
 
-results/
-!results/
+# results/
+# !results/
 !results/summary/
 !results/summary/*.csv
 !results/summary/*.md
 # local experiment outputs
-results/*
+# results/*
 !results/summary/
 results/summary/*diff.txt
 !results/summary/performance_results.csv
