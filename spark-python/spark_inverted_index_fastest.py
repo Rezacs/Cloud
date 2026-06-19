@@ -8,8 +8,6 @@ TOKEN_RE = re.compile(r"[a-z0-9]+")
 def load_stopwords(sc, path):
     if not path:
         return set()
-    # Safely collect stopwords using Spark's distributed textFile 
-    # to avoid localized FileNotFoundError on worker nodes
     try:
         return {
             line.strip().lower()
@@ -28,13 +26,13 @@ def load_stopwords(sc, path):
 
 def parse_args():
     if len(sys.argv) < 3 or len(sys.argv) > 5:
-        print("Usage: inverted_index_spark_fast.py <input> <output> [numPartitions] [stopwordsPath]")
+        print("Usage: spark_inverted_index_fastest.py <input> <output> [numPartitions] [stopwordsPath]")
         sys.exit(1)
 
-    input_path = sys.argv[1]
+    input_path  = sys.argv[1]
     output_path = sys.argv[2]
-    num_partitions = 4  # Tuned for your 3 nodes (2 worker tasks + 2 backup)
-    stopwords_path = None
+    num_partitions  = 4
+    stopwords_path  = None
 
     if len(sys.argv) >= 4:
         try:
@@ -52,20 +50,18 @@ def main():
 
     conf = (
         SparkConf()
-        .setAppName("PySpark Inverted Index Fast No Sort")
-        .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        .set("spark.shuffle.compress", "true")
-        .set("spark.shuffle.spill.compress", "true")
-        .set("spark.rdd.compress", "true")
-        .set("spark.default.parallelism", str(num_partitions))
-        .set("spark.sql.shuffle.partitions", str(num_partitions))
-        .set("spark.python.worker.reuse", "true")
+        .setAppName("PySpark Inverted Index Fastest No Sort")
+        .set("spark.serializer",              "org.apache.spark.serializer.KryoSerializer")
+        .set("spark.shuffle.compress",        "true")
+        .set("spark.shuffle.spill.compress",  "true")
+        .set("spark.rdd.compress",            "true")
+        .set("spark.default.parallelism",     str(num_partitions))
+        .set("spark.sql.shuffle.partitions",  str(num_partitions))
+        .set("spark.python.worker.reuse",     "true")
     )
 
     sc = SparkContext(conf=conf)
-
-    stopwords = load_stopwords(sc, stopwords_path)
-    stopwords_bc = sc.broadcast(stopwords)
+    stopwords_bc = sc.broadcast(load_stopwords(sc, stopwords_path))
 
     files = sc.wholeTextFiles(input_path, minPartitions=num_partitions)
 
@@ -73,30 +69,17 @@ def main():
         path, text = file_content
         filename = path.rsplit("/", 1)[-1]
         sw = stopwords_bc.value
-
         counts = {}
         text = text.lower()
-
         for match in TOKEN_RE.finditer(text):
             word = match.group(0)
             if word not in sw:
                 counts[word] = counts.get(word, 0) + 1
+        return [(word, f"{filename}:{count}") for word, count in counts.items()]
 
-        out = []
-        for word, count in counts.items():
-            # Emit structured dictionary entries to keep combineByKey fast
-            out.append((word, f"{filename}:{count}"))
-        return out
-
-    # Memory Efficient Aggregators using string structures instead of massive arrays
-    def create_combiner(v):
-        return v
-
-    def merge_value(acc, v):
-        return f"{acc} {v}"
-
-    def merge_combiners(a, b):
-        return f"{a} {b}"
+    def create_combiner(v):   return v
+    def merge_value(acc, v):  return f"{acc} {v}"
+    def merge_combiners(a, b): return f"{a} {b}"
 
     inverted_index = (
         files
@@ -109,7 +92,6 @@ def main():
         )
     )
 
-    # Output matches requested project template format perfectly
     inverted_index.map(lambda x: f"{x[0]} {x[1]}").saveAsTextFile(output_path)
 
     stopwords_bc.destroy()
