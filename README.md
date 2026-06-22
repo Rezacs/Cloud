@@ -293,7 +293,6 @@ Output correctness was validated by comparing line counts across all methods on 
 
 ## Notes
 
-- **Do not include input datasets** in the project zip submission.
 - The sequential Python solution reads from **local filesystem**, not HDFS — this is intentional; it serves as a single-machine baseline.
 - For combined datasets, Hadoop and Spark accept comma-separated HDFS input paths natively (e.g. `/input/ds-07,..,/input/ds-12`).
 - The `results/` directory contains only summary tarballs and CSVs, not raw HDFS output (deleted after each job to save space).
