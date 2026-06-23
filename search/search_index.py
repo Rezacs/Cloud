@@ -1,5 +1,6 @@
 import re
 import sys
+import subprocess
 
 STOPWORDS_FILE = "/home/hadoop/Cloud/hadoop-java/src/main/resources/stopwords.txt"
 
@@ -32,20 +33,61 @@ def parse_files(postings):
     return files
 
 
+
+def iter_index_lines(index_path):
+    """
+    Read lines either from a local file or from HDFS.
+
+    Examples:
+      local: /home/hadoop/index.txt
+      hdfs:  /output/demo/.../part-r-00000
+      hdfs:  hdfs:///output/demo/.../part-r-00000
+    """
+
+    if index_path.startswith("hdfs://") or index_path.startswith("/output/"):
+        hdfs_path = index_path
+
+        # If path starts with hdfs:// keep it.
+        # If it starts with /output/... it also works with hdfs dfs -cat.
+        process = subprocess.Popen(
+            ["hdfs", "dfs", "-cat", hdfs_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace"
+        )
+
+        assert process.stdout is not None
+
+        for line in process.stdout:
+            yield line
+
+        return_code = process.wait()
+
+        if return_code != 0:
+            stderr = process.stderr.read() if process.stderr else ""
+            raise RuntimeError(f"Failed to read HDFS path: {hdfs_path}\n{stderr}")
+
+    else:
+        with open(index_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                yield line
+
+
 def load_index(index_file):
     index = {}
 
-    with open(index_file, "r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            parts = line.strip().split()
+    for line in iter_index_lines(index_file):
+        parts = line.strip().split()
 
-            if len(parts) < 2:
-                continue
+        if len(parts) < 2:
+            continue
 
-            word = parts[0]
-            postings = parts[1:]
+        word = parts[0]
+        postings = parts[1:]
 
-            index[word] = parse_files(postings)
+        index[word] = parse_files(postings)
 
     return index
 
