@@ -13,3 +13,5 @@ hdfs dfs -ls /input/ds-00-000mb-100files-tiny-news
 hdfs dfs -count /input/ds-00-000mb-100files-tiny-news
 
 hdfs dfs -cat /input/ds-00-000mb-100files-tiny-news/<filename> | head -20
+
+python3 search_index.py "/output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/part-*" "battle world"
