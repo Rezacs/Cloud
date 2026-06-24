@@ -18,3 +18,7 @@ hdfs dfs -count /input/ds-00-000mb-100files-tiny-news
 hdfs dfs -cat /input/ds-00-000mb-100files-tiny-news/<filename> | head -20
 
 python3 search_index.py "/output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/part-*" "battle world"
+
+python3 raw_search.py /input/ds-00-000mb-100files-tiny-news "battle"
+
+python3 raw_search.py "/home/hadoop/Cloud/*.txt" "battle"
