@@ -4,6 +4,9 @@ hdfs dfs -ls /output/demo/ds-00-000mb-100files-tiny-news/
 
 hdfs dfs -ls /output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/
 
+hdfs dfs -cat /output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/part-r-00000 \
+| awk -F'\t' '{printf "%-20s %s\n",$1,$2}'
+
 hdfs dfs -cat /output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/part-r-00000 | head -20
 
 hdfs dfs -cat /output/demo/ds-00-000mb-100files-tiny-news/hadoop-base-r4/part-r-00000 | grep "^battle"
